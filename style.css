@@ -1,0 +1,199 @@
+body{
+    font-family:Arial,sans-serif;
+    text-align:center;
+    background:#f5f5f5;
+    margin:0;
+    padding:10px;
+}
+
+h1{
+    font-size:22px;
+    margin:12px 0 18px;
+}
+
+.login-box{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    margin-bottom:15px;
+}
+
+.login-box input,
+.login-box button{
+    width:100%;
+    max-width:340px;
+
+    font-size:16px;
+    padding:14px;
+
+    border-radius:12px;
+}
+
+.login-box input{
+    border:1px solid #ccc;
+}
+
+.login-box button{
+    border:none;
+    background:#4caf50;
+    color:white;
+}
+
+#mySeatText{
+    font-size:16px;
+    margin-bottom:15px;
+}
+
+.study-room{
+    width:100%;
+    max-width:420px;
+
+    margin:0 auto;
+
+    display:grid;
+
+    grid-template-columns:
+      1fr 1fr 12px 1fr 1fr;
+
+    gap:10px;
+}
+
+.desk{
+    min-height:95px;
+
+    background:white;
+    border:3px solid #555;
+    border-radius:14px;
+
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    font-size:15px;
+    font-weight:bold;
+
+    box-shadow:
+      0 3px 8px rgba(0,0,0,.08);
+
+    cursor:pointer;
+}
+
+.desk.used{
+    background:#d8d8d8;
+}
+
+.desk.selected{
+    border-color:#2196f3;
+}
+
+.aisle{
+    width:12px;
+}
+
+.popup{
+    position:fixed;
+    inset:0;
+
+    background:rgba(0,0,0,.45);
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    padding:16px;
+}
+
+.popup-box{
+    width:100%;
+    max-width:340px;
+
+    background:white;
+    border-radius:16px;
+
+    padding:22px;
+}
+
+.popup-box select,
+.popup-box button{
+    width:100%;
+    margin-top:10px;
+
+    font-size:16px;
+    padding:14px;
+
+    border-radius:12px;
+}
+
+.hidden{
+    display:none;
+}
+
+@media (max-width:480px){
+
+    body{
+        padding:8px;
+    }
+
+    h1{
+        font-size:20px;
+    }
+
+    .study-room{
+        max-width:100%;
+        gap:8px;
+    }
+
+    .desk{
+        min-height:85px;
+        font-size:14px;
+    }
+}
+
+.session-text {
+    font-size: 12px;
+    display: block;
+    margin-top: 3px;
+}
+
+.part1 {
+    color: #0077ff;
+}
+
+.part2 {
+    color: #00aa55;
+}
+
+.both {
+    color: #cc6600;
+    font-weight: bold;
+}
+
+.user-text{
+    display:block;
+    margin-top:4px;
+    font-size:13px;
+    font-weight:bold;
+}
+
+.study-room{
+    width:100%;
+    max-width:900px;
+    margin:0 auto;
+
+    display:grid;
+    grid-template-columns:
+      repeat(10,70px);
+
+    justify-content:center;
+    gap:10px;
+}
+
+.yeong-room{
+    display:grid;
+    grid-template-columns:repeat(8,80px);
+    gap:12px;
+    justify-content:center;
+    margin:0 auto;
+}
