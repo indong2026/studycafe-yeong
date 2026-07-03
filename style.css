@@ -177,23 +177,34 @@ h1{
     font-weight:bold;
 }
 
-.study-room{
+.room-wrap{
     width:100%;
-    max-width:900px;
-    margin:0 auto;
-
-    display:grid;
-    grid-template-columns:
-      repeat(10,70px);
-
-    justify-content:center;
-    gap:10px;
+    overflow-x:auto;
+    overflow-y:hidden;
 }
 
 .yeong-room{
     display:grid;
-    grid-template-columns:repeat(8,80px);
-    gap:12px;
+    grid-template-columns:repeat(8,70px);
+    gap:10px;
+
+    width:max-content;
+    min-width:max-content;
+
+    margin:0;
+    padding:10px;
+}
+
+.door{
+    height:40px;
+    background:#8b5a2b;
+    color:white;
+    border-radius:8px;
+
+    display:flex;
     justify-content:center;
-    margin:0 auto;
+    align-items:center;
+
+    font-size:14px;
+    font-weight:bold;
 }
