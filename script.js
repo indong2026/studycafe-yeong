@@ -433,7 +433,7 @@ function canReserve() {
 
   // 12:30 ~ 21:30
 
-  return minute >= 750 && minute < 1290;
+  return minute true;
 }
 
 cancelBtn.onclick = () => {
