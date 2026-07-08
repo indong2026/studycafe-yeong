@@ -43,6 +43,18 @@ const adminCloseBtn = document.getElementById("adminCloseBtn");
 
 reserveTimeInfo.textContent = "예약 가능 시간 : 12:30 ~ 21:30";
 
+//해시 코드 함수
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // 상태
 let currentUser = null;
 let selectedSeat = null;
@@ -196,6 +208,7 @@ function render() {
 loginBtn.onclick = async () => {
   const id = idInput.value.trim();
   const pw = pwInput.value.trim();
+  const hashedPw = await hashPassword(pw);
 
   const idRule = /^[0-9]{5}$/;
 
@@ -213,7 +226,7 @@ loginBtn.onclick = async () => {
       return;
     }
 
-    if (snap.data().password !== pw) {
+    if (snap.data().password !== hashedPw) {
       alert("비밀번호 틀림");
       return;
     }
@@ -259,6 +272,7 @@ loginBtn.onclick = async () => {
 signupBtn.onclick = async () => {
   const id = idInput.value.trim();
   const pw = pwInput.value.trim();
+  const hashedPw = await hashPassword(pw);
 
   const pwRule = /^(?=.*[!@#$%^&*])(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
@@ -303,7 +317,7 @@ signupBtn.onclick = async () => {
       `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
     await setDoc(ref, {
-      password: pw,
+      password: hashedPw,
       ticketCount: 10,
       ticketMonth: currentMonth,
       isAdmin: false,
@@ -391,6 +405,8 @@ changePwBtn.onclick = async () => {
 
   const oldPw = prompt("현재 비밀번호");
   const newPw = prompt("새 비밀번호");
+  const oldHash = await hashPassword(oldPw);
+  const newHash = await hashPassword(newPw);
 
   const pwRule = /^(?=.*[!@#$%^&*])(?=.*[A-Za-z])(?=.*\d).{4,}$/;
 
@@ -405,13 +421,13 @@ changePwBtn.onclick = async () => {
     const ref = doc(db, "users", currentUser);
     const snap = await getDoc(ref);
 
-    if (snap.data().password !== oldPw) {
+    if (snap.data().password !== oldHash) {
       alert("현재 비밀번호 틀림");
       return;
     }
 
     await updateDoc(ref, {
-      password: newPw,
+      password: newHash,
     });
 
     alert("변경 완료");
