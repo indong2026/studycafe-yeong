@@ -264,8 +264,22 @@ signupBtn.onclick = async () => {
   const pwRule = /^(?=.*[!@#$%^&*])(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
   if (!idRule.test(id)) {
-    alert("학번 5자리 입력");
+    alert("올바른 인동고 학번만 입력할 수 있습니다.");
     return;
+  }
+
+  function isValidStudentId(id) {
+    if (!/^\d{5}$/.test(id)) return false;
+
+    const grade = Number(id[0]); // 1~2
+    const classroom = Number(id.slice(1, 3)); // 01~10
+    const number = Number(id.slice(3, 5)); // 01~28
+
+    if (grade < 1 || grade > 2) return false;
+    if (classroom < 1 || classroom > 10) return false;
+    if (number < 1 || number > 28) return false;
+
+    return true;
   }
 
   if (!pwRule.test(pw)) {
@@ -433,7 +447,7 @@ function canReserve() {
 
   // 12:30 ~ 21:30
 
-  return true;
+  return minute >= 750 && minute < 1290;
 }
 
 cancelBtn.onclick = () => {
