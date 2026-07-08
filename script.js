@@ -140,7 +140,7 @@ function render() {
         return;
       }
 
-      if (seat.owner === currentUser) {
+      if (seat.owner === currentUser && seat.date === todayString()) {
         const ok = confirm("취소하시겠습니까?");
 
         if (!ok) return;
@@ -260,20 +260,15 @@ signupBtn.onclick = async () => {
   const id = idInput.value.trim();
   const pw = pwInput.value.trim();
 
-  const idRule = /^[0-9]{5}$/;
   const pwRule = /^(?=.*[!@#$%^&*])(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 
-  if (!idRule.test(id)) {
-    alert("올바른 인동고 학번만 입력할 수 있습니다.");
-    return;
-  }
-
+  // 인동고 학번 검사
   function isValidStudentId(id) {
     if (!/^\d{5}$/.test(id)) return false;
 
-    const grade = Number(id[0]); // 1~2
-    const classroom = Number(id.slice(1, 3)); // 01~10
-    const number = Number(id.slice(3, 5)); // 01~28
+    const grade = Number(id[0]);          // 1~2학년
+    const classroom = Number(id.slice(1, 3)); // 01~10반
+    const number = Number(id.slice(3, 5));    // 01~28번
 
     if (grade < 1 || grade > 2) return false;
     if (classroom < 1 || classroom > 10) return false;
@@ -282,8 +277,15 @@ signupBtn.onclick = async () => {
     return true;
   }
 
+  // 학번 검사
+  if (!isValidStudentId(id)) {
+    alert("올바른 인동고 학번만 입력할 수 있습니다.");
+    return;
+  }
+
+  // 비밀번호 검사
   if (!pwRule.test(pw)) {
-    alert("비밀번호 8자 이상 / 영문 / 숫자 / 특수문자");
+    alert("비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.");
     return;
   }
 
@@ -292,13 +294,13 @@ signupBtn.onclick = async () => {
     const snap = await getDoc(ref);
 
     if (snap.exists()) {
-      alert("이미 가입됨");
+      alert("이미 가입된 계정입니다.");
       return;
     }
 
     const now = new Date();
-
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const currentMonth =
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
     await setDoc(ref, {
       password: pw,
