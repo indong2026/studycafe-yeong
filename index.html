@@ -80,54 +80,118 @@
     </p>
 
     <div
-        id="popup"
-        class="popup hidden">
+    id="popup"
+    class="popup hidden">
 
-        <div class="popup-box">
+    <div class="popup-box">
 
-            <p id="popupText">
-                자리를 예약하시겠습니까?
-            </p>
+        <p id="popupText">
+            자리를 예약하시겠습니까?
+        </p>
 
-            <label>
-    사용 시간 선택
-</label>
 
-<br><br>
+        <!-- 여기부터 날짜 -->
+        <label>
+            예약 날짜 선택
+        </label>
 
-<select id="sessionSelect">
+        <br>
 
-    <option value="part1">
-        야자 1부 (18:00~20:00)
-    </option>
+        <input
+            id="reserveDate"
+            type="date"
+        >
 
-    <option value="part2">
-        야자 2부 (20:10~21:30)
-    </option>
+        <br><br>
 
-    <option value="both">
-        야자 1부 + 2부
-    </option>
 
-</select>
+        <!-- 여기부터 시간 -->
+        <label>
+            사용 시간 선택
+        </label>
 
-            <br><br>
+        <br><br>
 
-            <button id="reserveBtn">
-                예약하기
-            </button>
+        <label>
+            <input
+                type="checkbox"
+                id="lunchCheck"
+            >
+            점심 (12:30~13:30)
+        </label>
 
-            <button id="cancelBtn">
-                취소
-            </button>
+        <br>
 
-            
+        <label>
+            <input
+                type="checkbox"
+                id="dinnerCheck"
+            >
+            저녁 (17:30~18:30)
+        </label>
 
-            
+        <br>
 
-        </div>
+        <label>
+            <input
+                type="checkbox"
+                id="part1Check"
+            >
+            야자 1부 (18:00~20:00)
+        </label>
+
+        <br>
+
+        <label>
+            <input
+                type="checkbox"
+                id="part2Check"
+            >
+            야자 2부 (20:10~21:30)
+        </label>
+
+        <br><br>
+
+
+        <button id="reserveBtn">
+            예약하기
+        </button>
+
+        <button id="cancelBtn">
+            취소
+        </button>
 
     </div>
+
+</div>
+
+<!-- ============================= -->
+<!-- 예약 취소 팝업 -->
+<!-- ============================= -->
+
+<div id="cancelReservationPopup" class="popup hidden">
+
+    <div class="popup-box">
+
+        <h3>내 예약 관리</h3>
+
+        <p id="cancelReservationText">
+            예약된 시간입니다.
+        </p>
+
+        <!-- 내가 예약한 시간대 버튼들이 여기에 생성됨 -->
+        <div id="cancelTimeButtons"></div>
+
+        <br>
+
+        <button id="cancelReservationCloseBtn">
+            닫기
+        </button>
+
+    </div>
+
+</div>
+
     <div id="adminPopup" class="popup hidden">
 
   <div class="popup-box">
