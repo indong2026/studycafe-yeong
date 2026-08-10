@@ -1114,6 +1114,10 @@ reserveBtn.onclick = async () => {
     return;
   }
 
+  if (!canReserve()) {
+  return;
+}
+
   // 선택한 시간 확인
   const selectedTimes = {
     lunch: lunchCheck.checked,
@@ -1453,38 +1457,37 @@ function todayString() {
 
 // 🔥 예약 가능 여부 확인
 function canReserve() {
-  const now = new Date();
-
   const today = todayString();
-
   const selectedDate = reserveDate.value;
 
-  // 날짜가 선택되지 않았으면 예약 불가
+  // 날짜를 선택하지 않은 경우
   if (!selectedDate) {
     return false;
   }
 
-  // ==========================================
-  // 미래 날짜 예약
-  // ==========================================
+  // 과거 날짜는 예약 불가
+  if (selectedDate < today) {
+    alert("지난 날짜에는 예약할 수 없습니다.");
+    return false;
+  }
 
+  // 미래 날짜는 예약 가능
   if (selectedDate > today) {
-    // 미래 날짜라면 현재 시간이 언제든 예약 가능
     return true;
   }
 
-  // ==========================================
-  // 오늘 날짜 예약
-  // ==========================================
+  // 오늘 날짜
+  const now = new Date();
+  const minute = now.getHours() * 60 + now.getMinutes();
 
-  if (selectedDate === today) {
-    const minute = now.getHours() * 60 + now.getMinutes();
-
-    // 오늘은 12:30부터 예약 가능
-    // 21:30이 지나면 예약 불가
-
-    return minute >= 750 && minute < 1290;
+  // 오늘은 12:30 ~ 21:30 사이만 예약 가능
+  if (minute < 750 || minute >= 1290) {
+    alert("오늘 예약 가능 시간은 12:30 ~ 21:30입니다.");
+    return false;
   }
+
+  return true;
+}
 
   // ==========================================
   // 날짜가 지난 예약 데이터 자동 삭제
@@ -1527,9 +1530,6 @@ function canReserve() {
   // ==========================================
   // 과거 날짜
   // ==========================================
-
-  return false;
-}
 
 cancelBtn.onclick = () => {
   popup.classList.add("hidden");
