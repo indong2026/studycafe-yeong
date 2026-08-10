@@ -344,13 +344,13 @@ function render() {
     let owner = "";
 
     if (currentSession === "lunch") {
-      owner = seat.times?.lunch?.owner || "";
+      owner = seat.times?.lunch || "";
     } else if (currentSession === "dinner") {
-      owner = seat.times?.dinner?.owner || "";
+      owner = seat.times?.dinner || "";
     } else if (currentSession === "part1") {
-      owner = seat.times?.part1?.owner || "";
+      owner = seat.times?.part1 || "";
     } else if (currentSession === "part2") {
-      owner = seat.times?.part2?.owner || "";
+      owner = seat.times?.part2 || "";
     }
 
     // 예약되어 있으면 좌석 사용중 표시
