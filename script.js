@@ -1280,10 +1280,9 @@ reserveBtn.onclick = async () => {
 
   try {
     await runTransaction(db, async (transaction) => {
-      const [freshUserSnap, freshSeatSnap, allSeatsSnap] = await Promise.all([
+      const [freshUserSnap, freshSeatSnap] = await Promise.all([
         transaction.get(userRef),
         transaction.get(seatRef),
-        transaction.get(reservationsRef),
       ]);
 
       if (!freshUserSnap.exists()) throw new Error("계정을 찾을 수 없습니다.");
@@ -1299,13 +1298,6 @@ reserveBtn.onclick = async () => {
         if (!selectedTimes[timeName]) continue;
         if (freshTimes[timeName]?.owner) {
           throw new Error("방금 다른 사람이 예약한 시간입니다. 다시 선택해주세요.");
-        }
-
-        for (const otherSeat of allSeatsSnap.docs) {
-          if (otherSeat.id === String(selectedSeat)) continue;
-          if (otherSeat.data().times?.[timeName]?.owner === currentUser) {
-            throw new Error("같은 시간에는 한 좌석만 예약할 수 있습니다.");
-          }
         }
       }
 
