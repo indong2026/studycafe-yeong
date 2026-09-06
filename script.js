@@ -884,6 +884,40 @@ function openCancelReservationPopup(
 
   });
 
+  const myReservedTimes = timeInfo.filter((time) => times[time.key]?.owner === currentUser);
+  if (myReservedTimes.length > 1) {
+    const cancelAllButton = document.createElement("button");
+    cancelAllButton.textContent = "이 자리 예약 전체 취소";
+    cancelAllButton.classList.add("cancel-all-btn");
+    cancelAllButton.onclick = async () => {
+      if (!confirm(`${myReservedTimes.length}개 시간대 예약을 모두 취소하시겠습니까?`)) return;
+      try {
+        const ref = doc(db, "reservations", selectedDate, "seats", String(seatNum));
+        const userRef = doc(db, "users", currentUser);
+        const cancelledCount = await runTransaction(db, async (transaction) => {
+          const [freshSeatSnap, freshUserSnap] = await Promise.all([transaction.get(ref), transaction.get(userRef)]);
+          if (!freshSeatSnap.exists() || !freshUserSnap.exists()) throw new Error("예약 또는 계정 정보를 찾을 수 없습니다.");
+          const freshTimes = freshSeatSnap.data().times || {};
+          const keys = timeInfo.filter((time) => freshTimes[time.key]?.owner === currentUser).map((time) => time.key);
+          if (!keys.length) throw new Error("취소할 예약이 없습니다.");
+          const seatUpdates = {};
+          keys.forEach((key) => { seatUpdates[`times.${key}`] = { owner: "" }; });
+          transaction.update(ref, seatUpdates);
+          transaction.update(userRef, { ticketCount: Math.min((freshUserSnap.data().ticketCount ?? 0) + keys.length, 10) });
+          return keys.length;
+        });
+        cancelReservationPopup.classList.add("hidden");
+        await updateMyInfo();
+        render();
+        alert(`${cancelledCount}개 시간대 예약을 모두 취소했습니다.`);
+      } catch (error) {
+        console.error(error);
+        alert(error.message || "전체 취소에 실패했습니다.");
+      }
+    };
+    cancelTimeButtons.appendChild(cancelAllButton);
+  }
+
 
   // ========================================
   // 팝업 표시

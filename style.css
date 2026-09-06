@@ -244,3 +244,7 @@ h1{
     font-size:16px;
     border-radius:10px;
 }
+
+.cancel-all-btn{
+    background:#dc2626 !important;
+}
