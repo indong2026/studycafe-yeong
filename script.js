@@ -1,4 +1,13 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
   getFirestore,
@@ -10,6 +19,8 @@ import {
   collection,
   getDocs,
   onSnapshot,
+  runTransaction,
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -20,6 +31,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+function authEmail(studentId) {
+  return `${studentId}@indong-study.local`;
+}
+
+function isValidStudentId(id) {
+  if (!/^\d{5}$/.test(id)) return false;
+  const grade = Number(id[0]), classroom = Number(id.slice(1, 3)), number = Number(id.slice(3, 5));
+  return grade >= 1 && grade <= 2 && classroom >= 1 && classroom <= 10 && number >= 1 && number <= 28;
+}
 
 // UI
 const popup = document.getElementById("popup");
@@ -41,6 +63,9 @@ const reserveTimeInfo = document.getElementById("reserveTimeInfo");
 const adminPopup = document.getElementById("adminPopup");
 
 const adminCloseBtn = document.getElementById("adminCloseBtn");
+const adminCancelSeatBtn = document.getElementById("adminCancelSeatBtn");
+const adminAddTicketBtn = document.getElementById("adminAddTicketBtn");
+const adminDeleteUserBtn = document.getElementById("adminDeleteUserBtn");
 
 // 예약 날짜 입력창
 const reserveDate = document.getElementById("reserveDate");
@@ -101,6 +126,7 @@ let selectedSeat = null;
 let seats = [];
 
 let isAdmin = false;
+let renderTimer = null;
 
 for (let i = 1; i <= 8; i++) {
   seats.push({
@@ -109,6 +135,9 @@ for (let i = 1; i <= 8; i++) {
     session: "",
   });
 }
+
+// 시간대가 바뀌어도 화면 상태가 갱신되도록 타이머는 한 번만 둔다.
+renderTimer = window.setInterval(render, 60000);
 
 async function updateMonthlyTicket(userRef, userData) {
   const now = new Date();
@@ -136,13 +165,14 @@ async function updateMyInfo() {
   const userSnap = await getDoc(userRef);
 
   const ticketCount = userSnap.data()?.ticketCount ?? 10;
+  const studentId = userSnap.data()?.studentId ?? currentUser;
 
   const mine = seats.find((s) => s.owner === currentUser);
 
   if (mine) {
-    mySeatText.textContent = `${currentUser}님 | ${mine.num}번 자리 | 예약권 ${ticketCount}/10`;
+    mySeatText.textContent = `${studentId}님 | ${mine.num}번 자리 | 예약권 ${ticketCount}/10`;
   } else {
-    mySeatText.textContent = `${currentUser}님 | 예약권 ${ticketCount}/10`;
+    mySeatText.textContent = `${studentId}님 | 예약권 ${ticketCount}/10`;
   }
 }
 
@@ -322,6 +352,11 @@ function render() {
     currentSession = "lunch";
   }
 
+  // 저녁과 야자 1부가 겹치는 18:00 ~ 18:30
+  else if (minute >= 1080 && minute < 1110) {
+    currentSession = "dinnerPart1";
+  }
+
   // 저녁 17:30 ~ 18:30
   else if (minute >= 1050 && minute < 1110) {
     currentSession = "dinner";
@@ -343,7 +378,9 @@ function render() {
     // 현재 시간대에 예약된 사람
     let owner = "";
 
-    if (currentSession === "lunch") {
+    if (currentSession === "dinnerPart1") {
+      owner = [seat.times?.dinner, seat.times?.part1].filter(Boolean).join(" / ");
+    } else if (currentSession === "lunch") {
       owner = seat.times?.lunch || "";
     } else if (currentSession === "dinner") {
       owner = seat.times?.dinner || "";
@@ -363,7 +400,9 @@ function render() {
     // 좌석에 표시할 시간대 이름
     let sessionText = "";
 
-    if (currentSession === "lunch") {
+    if (currentSession === "dinnerPart1") {
+      sessionText = "저녁 / 야자 1부";
+    } else if (currentSession === "lunch") {
       sessionText = "점심";
     } else if (currentSession === "dinner") {
       sessionText = "저녁";
@@ -379,7 +418,7 @@ function render() {
         ${
           owner
             ? `<span class="session-text">${sessionText}</span>
-               <span class="user-text">${owner}</span>`
+               <span class="user-text">${owner === currentUser ? "내 예약" : "사용 중"}</span>`
             : ""
         }
       `;
@@ -519,6 +558,68 @@ function render() {
 
       popup.classList.remove("hidden");
     };
+  });
+}
+
+// ==========================================
+// 예약 실시간 감시
+// ==========================================
+
+let reservationUnsubscribers = [];
+
+function listenReservations(date) {
+
+  // 기존 실시간 감시 종료
+  reservationUnsubscribers.forEach((unsubscribe) => {
+    unsubscribe();
+  });
+
+  reservationUnsubscribers = [];
+
+  // 선택한 날짜의 좌석 1~8만 감시
+  seats.forEach((seat) => {
+
+    const ref = doc(
+      db,
+      "reservations",
+      date,
+      "seats",
+      String(seat.num)
+    );
+
+    const unsubscribe = onSnapshot(ref, (snap) => {
+
+      if (snap.exists()) {
+
+        const data = snap.data();
+        const times = data.times || {};
+
+        seat.times = {
+          lunch: times.lunch?.owner || "",
+          dinner: times.dinner?.owner || "",
+          part1: times.part1?.owner || "",
+          part2: times.part2?.owner || ""
+        };
+
+        seat.date = data.date || "";
+
+      } else {
+
+        seat.times = {
+          lunch: "",
+          dinner: "",
+          part1: "",
+          part2: ""
+        };
+
+        seat.date = "";
+      }
+
+      render();
+
+    });
+
+    reservationUnsubscribers.push(unsubscribe);
   });
 }
 
@@ -698,48 +799,23 @@ function openCancelReservationPopup(
       // Firestore 저장
       // ====================================
 
-      await setDoc(ref, {
-
-        date: selectedDate,
-
-        times: newTimes
-
-      });
-
-
-      // ====================================
-      // 예약권 1개 반환
-      // ====================================
-
-      const userRef =
-        doc(db, "users", currentUser);
-
-
-      const userSnap =
-        await getDoc(userRef);
-
-
-      if (userSnap.exists()) {
-
-        const userData =
-          userSnap.data();
-
-
-        const currentTicket =
-          userData.ticketCount ?? 0;
-
-
-        await updateDoc(userRef, {
-
-          ticketCount:
-            Math.min(
-              currentTicket + 1,
-              10
-            )
-
+      const userRef = doc(db, "users", currentUser);
+      await runTransaction(db, async (transaction) => {
+        const [freshSeatSnap, freshUserSnap] = await Promise.all([
+          transaction.get(ref),
+          transaction.get(userRef),
+        ]);
+        if (!freshSeatSnap.exists() || !freshUserSnap.exists()) {
+          throw new Error("예약 또는 계정 정보를 찾을 수 없습니다.");
+        }
+        if (freshSeatSnap.data().times?.[time.key]?.owner !== currentUser) {
+          throw new Error("이미 취소되었거나 다른 예약으로 변경되었습니다.");
+        }
+        transaction.update(ref, { [`times.${time.key}`]: { owner: "" } });
+        transaction.update(userRef, {
+          ticketCount: Math.min((freshUserSnap.data().ticketCount ?? 0) + 1, 10),
         });
-
-      }
+      });
 
 
       // ====================================
@@ -763,11 +839,6 @@ function openCancelReservationPopup(
 
       // 좌석 화면 갱신
       render();
-
-      // 1분마다 현재 시간대와 좌석 사용자를 갱신
-      setInterval(() => {
-        render();
-      }, 60000);
 
     };
 
@@ -837,13 +908,13 @@ loginBtn.onclick = async () => {
 
     const userData = snap.data();
 
-    console.log(userData);
-
     currentUser = id;
 
-    isAdmin = userData.isAdmin || false;
+isAdmin = userData.isAdmin || false;
 
-    await updateMyInfo();
+await updateMyInfo();
+
+listenReservations(reserveDate.value || todayString());
 
     if (isAdmin) {
       document.getElementById("adminBtn").style.display = "block";
@@ -867,77 +938,7 @@ loginBtn.onclick = async () => {
 
     // 처음 사이트에 들어오면 오늘 날짜의 예약을 감시
     // 현재 실행 중인 Firestore 실시간 감시 목록
-    let reservationUnsubscribers = [];
-
-    // 🔥 특정 날짜의 예약을 실시간으로 감시
-    function listenReservations(date) {
-      // 기존 날짜의 실시간 감시 중지
-      reservationUnsubscribers.forEach((unsubscribe) => {
-        unsubscribe();
-      });
-
-      reservationUnsubscribers = [];
-
-      // 좌석 1~8 감시
-      seats.forEach((seat) => {
-        const ref = doc(db, "reservations", date, "seats", String(seat.num));
-
-        const unsubscribe = onSnapshot(ref, (snap) => {
-          if (snap.exists()) {
-            const data = snap.data();
-
-            // Firestore에 저장된 시간대별 예약 정보
-            const times = data.times || {};
-
-            seat.times = {
-              lunch: times.lunch?.owner || "",
-              dinner: times.dinner?.owner || "",
-              part1: times.part1?.owner || "",
-              part2: times.part2?.owner || "",
-            };
-
-            seat.owner = "";
-            seat.session = "";
-            seat.date = data.date || "";
-          } else {
-            // 해당 날짜에 예약이 없을 때
-            seat.times = {
-              lunch: "",
-              dinner: "",
-              part1: "",
-              part2: "",
-            };
-
-            seat.owner = "";
-            seat.session = "";
-            seat.date = "";
-          }
-
-          if (currentUser) {
-            updateMyInfo();
-          }
-
-          render();
-        });
-
-        // 나중에 날짜가 바뀌면 이 감시를 종료할 수 있도록 저장
-        reservationUnsubscribers.push(unsubscribe);
-      });
-    }
-
-    render();
-
-    // 처음에는 오늘 날짜 예약 감시
-    listenReservations(todayString());
-
-    // 🔥 예약 날짜가 바뀌면 해당 날짜의 예약을 다시 불러옴
-    reserveDate.addEventListener("change", () => {
-      const selectedDate = reserveDate.value;
-
-      if (!selectedDate) return;
-
-      listenReservations(selectedDate);
-    });
+    
 
   } catch (e) {
     console.error(e);
@@ -1009,86 +1010,7 @@ signupBtn.onclick = async () => {
 // 🔥 좌석 데이터 실시간 반영
 // 🔥 선택한 날짜의 좌석 예약을 실시간으로 감시
 // 현재 실행 중인 Firestore 실시간 감시 목록
-let reservationUnsubscribers = [];
 
-// 🔥 특정 날짜의 예약을 실시간으로 감시
-function listenReservations(date) {
-
-  // 기존 날짜의 실시간 감시 중지
-  reservationUnsubscribers.forEach((unsubscribe) => {
-    unsubscribe();
-  });
-
-  reservationUnsubscribers = [];
-
-  // 좌석 1~8 감시
-  seats.forEach((seat) => {
-
-    const ref = doc(
-      db,
-      "reservations",
-      date,
-      "seats",
-      String(seat.num)
-    );
-
-    const unsubscribe = onSnapshot(ref, (snap) => {
-
-      if (snap.exists()) {
-        const data = snap.data();
-
-        // Firestore에 저장된 시간대별 예약 정보
-        const times = data.times || {};
-
-        seat.times = {
-          lunch: times.lunch?.owner || "",
-          dinner: times.dinner?.owner || "",
-          part1: times.part1?.owner || "",
-          part2: times.part2?.owner || "",
-        };
-
-        seat.owner = "";
-        seat.session = "";
-        seat.date = data.date || "";
-      } else {
-        // 해당 날짜에 예약이 없을 때
-        seat.times = {
-          lunch: "",
-          dinner: "",
-          part1: "",
-          part2: "",
-        };
-
-        seat.owner = "";
-        seat.session = "";
-        seat.date = "";
-      }
-
-      if (currentUser) {
-        updateMyInfo();
-      }
-
-      render();
-
-      // 처음에는 오늘 날짜 예약 감시
-    listenReservations(todayString());
-
-    // 🔥 예약 날짜가 바뀌면 해당 날짜의 예약을 다시 불러옴
-    reserveDate.addEventListener("change", () => {
-      const selectedDate = reserveDate.value;
-
-      if (!selectedDate) return;
-
-      listenReservations(selectedDate);
-    });
-
-    });
-
-    // 나중에 날짜가 바뀌면 이 감시를 종료할 수 있도록 저장
-    reservationUnsubscribers.push(unsubscribe);
-
-  });
-}
 
 // 🔥 예약
 // 🔥 예약하기
@@ -1357,18 +1279,52 @@ reserveBtn.onclick = async () => {
   }
 
   try {
-    // ==========================================
-    // Firestore 저장
-    // ==========================================
+    await runTransaction(db, async (transaction) => {
+      const [freshUserSnap, freshSeatSnap, allSeatsSnap] = await Promise.all([
+        transaction.get(userRef),
+        transaction.get(seatRef),
+        transaction.get(reservationsRef),
+      ]);
 
-    await setDoc(seatRef, reserveData);
+      if (!freshUserSnap.exists()) throw new Error("계정을 찾을 수 없습니다.");
 
-    // ==========================================
-    // 예약권 차감
-    // ==========================================
+      const freshTicketCount = freshUserSnap.data().ticketCount ?? 0;
+      if (freshTicketCount < selectedCount) throw new Error("예약권이 부족합니다.");
 
-    await updateDoc(userRef, {
-      ticketCount: ticketCount - selectedCount,
+      const freshTimes = freshSeatSnap.exists()
+        ? freshSeatSnap.data().times || {}
+        : {};
+
+      for (const timeName of Object.keys(selectedTimes)) {
+        if (!selectedTimes[timeName]) continue;
+        if (freshTimes[timeName]?.owner) {
+          throw new Error("방금 다른 사람이 예약한 시간입니다. 다시 선택해주세요.");
+        }
+
+        for (const otherSeat of allSeatsSnap.docs) {
+          if (otherSeat.id === String(selectedSeat)) continue;
+          if (otherSeat.data().times?.[timeName]?.owner === currentUser) {
+            throw new Error("같은 시간에는 한 좌석만 예약할 수 있습니다.");
+          }
+        }
+      }
+
+      const freshReserveData = {
+        date: selectedDate,
+        times: {
+          lunch: freshTimes.lunch || { owner: "" },
+          dinner: freshTimes.dinner || { owner: "" },
+          part1: freshTimes.part1 || { owner: "" },
+          part2: freshTimes.part2 || { owner: "" },
+        },
+      };
+
+      for (const timeName of Object.keys(selectedTimes)) {
+        if (selectedTimes[timeName]) freshReserveData.times[timeName] = { owner: currentUser };
+      }
+
+      transaction.set(seatRef, freshReserveData);
+      transaction.update(userRef, { ticketCount: freshTicketCount - selectedCount });
     });
 
     // 내 정보 업데이트
@@ -1389,7 +1345,7 @@ reserveBtn.onclick = async () => {
   } catch (error) {
     console.error(error);
 
-    alert("예약 중 오류가 발생했습니다.");
+    alert(error.message || "예약 중 오류가 발생했습니다.");
   }
 };;;;
 
@@ -1434,7 +1390,7 @@ changePwBtn.onclick = async () => {
   }
 };
 
-render();
+
 
 function sessionText(session) {
   if (session === "part1") return "1부";
@@ -1547,20 +1503,33 @@ adminCloseBtn.onclick = () => {
 };
 
 adminCancelSeatBtn.onclick = async () => {
+  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
+  const date = prompt("예약 날짜 (YYYY-MM-DD)");
   const seatNum = prompt("좌석 번호");
+  const timeKey = prompt("시간대 (lunch, dinner, part1, part2)");
+  if (!date || !seatNum || !["lunch", "dinner", "part1", "part2"].includes(timeKey)) return;
 
-  if (!seatNum) return;
-
-  await setDoc(doc(db, "seats", seatNum), {
-    owner: "",
-    session: "",
-    date: "",
+  const seatRef = doc(db, "reservations", date, "seats", seatNum);
+  await runTransaction(db, async (transaction) => {
+    const seatSnap = await transaction.get(seatRef);
+    if (!seatSnap.exists()) throw new Error("예약 정보를 찾을 수 없습니다.");
+    const owner = seatSnap.data().times?.[timeKey]?.owner;
+    let userRef = null;
+    let userSnap = null;
+    if (owner) {
+      userRef = doc(db, "users", owner);
+      userSnap = await transaction.get(userRef);
+    }
+    transaction.update(seatRef, { [`times.${timeKey}`]: { owner: "" } });
+    if (userSnap?.exists()) {
+      transaction.update(userRef, { ticketCount: Math.min((userSnap.data().ticketCount ?? 0) + 1, 10) });
+    }
   });
-
-  alert("취소 완료");
+  alert("예약 취소 완료");
 };
 
 adminAddTicketBtn.onclick = async () => {
+  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
   const id = prompt("학번");
 
   const amount = Number(prompt("추가 수량"));
@@ -1586,6 +1555,7 @@ adminAddTicketBtn.onclick = async () => {
 };
 
 adminDeleteUserBtn.onclick = async () => {
+  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
   const id = prompt("삭제할 학번");
 
   if (!id) return;
@@ -1598,4 +1568,65 @@ adminDeleteUserBtn.onclick = async () => {
 
   alert("삭제 완료");
 
+};
+
+async function startAuthenticatedSession(user) {
+  currentUser = user.uid;
+  isAdmin = false;
+  document.getElementById("adminBtn").style.display = "none";
+  const userRef = doc(db, "users", currentUser);
+  const userSnap = await getDoc(userRef);
+  if (userSnap.exists()) await updateMonthlyTicket(userRef, userSnap.data());
+  await updateMyInfo();
+  listenReservations(reserveDate.value || todayString());
+}
+
+onAuthStateChanged(auth, (user) => {
+  if (user) startAuthenticatedSession(user).catch(console.error);
+});
+
+signupBtn.onclick = async () => {
+  const id = idInput.value.trim();
+  const password = pwInput.value;
+  if (!isValidStudentId(id)) return alert("올바른 인동고 학번만 입력할 수 있습니다.");
+  if (!/^(?=.*[!@#$%^&*])(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password)) return alert("비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.");
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, authEmail(id), password);
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    await setDoc(doc(db, "users", credential.user.uid), {
+      uid: credential.user.uid,
+      studentId: id,
+      ticketCount: 10,
+      ticketMonth: currentMonth,
+      createdAt: serverTimestamp(),
+    });
+    await startAuthenticatedSession(credential.user);
+    alert("회원가입 완료");
+  } catch (error) { console.error(error); alert(error.code === "auth/email-already-in-use" ? "이미 가입된 학번입니다." : "회원가입에 실패했습니다."); }
+};
+
+loginBtn.onclick = async () => {
+  const id = idInput.value.trim();
+  if (!isValidStudentId(id)) return alert("학번 5자리를 입력해주세요.");
+  try { await startAuthenticatedSession((await signInWithEmailAndPassword(auth, authEmail(id), pwInput.value)).user); alert("로그인 완료"); }
+  catch (error) { console.error(error); alert("학번 또는 비밀번호가 올바르지 않습니다."); }
+};
+
+changePwBtn.onclick = async () => {
+  if (!auth.currentUser) return alert("로그인 먼저 해주세요.");
+  const oldPassword = prompt("현재 비밀번호");
+  const newPassword = prompt("새 비밀번호");
+  if (!oldPassword || !newPassword) return;
+  if (!/^(?=.*[!@#$%^&*])(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(newPassword)) {
+    return alert("비밀번호는 8자 이상이며 영문, 숫자, 특수문자를 포함해야 합니다.");
+  }
+  try {
+    await reauthenticateWithCredential(auth.currentUser, EmailAuthProvider.credential(auth.currentUser.email, oldPassword));
+    await updatePassword(auth.currentUser, newPassword);
+    alert("비밀번호가 변경되었습니다.");
+  } catch (error) {
+    console.error(error);
+    alert("현재 비밀번호를 확인해주세요.");
+  }
 };
