@@ -8,9 +8,18 @@
 
     <title>영글터 좌석</title>
 
-    <link rel="stylesheet" href="style.css?v=reservation-date-2">
+    <link rel="stylesheet" href="style.css?v=layout-3">
 </head>
 <body>
+
+    <div class="date-toolbar">
+        <label for="reserveDate">예약 날짜</label>
+        <div class="date-toolbar-controls">
+            <input id="reserveDate" type="date">
+            <button type="button" id="goTodayBtn">TODAY</button>
+        </div>
+        <p class="date-hint">예약 전 날짜를 꼭 확인하세요.</p>
+    </div>
 
     <h1>영글터 좌석 선택</h1>
 
@@ -99,19 +108,7 @@
         </p>
 
 
-        <!-- 여기부터 날짜 -->
-        <label>
-            예약 날짜 선택
-        </label>
-
-        <div class="date-control">
-            <input
-                id="reserveDate"
-                type="date"
-            >
-            <button type="button" id="goTodayBtn">오늘로</button>
-        </div>
-        <p class="date-hint">예약 전 날짜를 꼭 확인하세요.</p>
+        <p class="popup-reservation-date">예약 날짜 <strong id="popupReserveDate"></strong></p>
 
 
         <!-- 여기부터 시간 -->

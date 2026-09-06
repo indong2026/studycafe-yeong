@@ -60,6 +60,7 @@ function reservationExpiresAt(date) {
 // UI
 const popup = document.getElementById("popup");
 const popupText = document.getElementById("popupText");
+const popupReserveDate = document.getElementById("popupReserveDate");
 const reserveBtn = document.getElementById("reserveBtn");
 const cancelBtn = document.getElementById("cancelBtn");
 
@@ -562,6 +563,7 @@ function render() {
       selectedSeat = seat.num;
 
       popupText.textContent = `${seat.num}번 자리를 예약하시겠습니까?`;
+      popupReserveDate.textContent = selectedDate;
 
       // 선택한 날짜 표시
       reserveDate.value = selectedDate;
@@ -1520,6 +1522,7 @@ function currentMonthEndString() {
 
 reserveDate.min = todayString();
 reserveDate.max = currentMonthEndString();
+if (!reserveDate.value) reserveDate.value = todayString();
 
 function canReserve() {
   const today = todayString();
