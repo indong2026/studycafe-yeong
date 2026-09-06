@@ -53,8 +53,8 @@ function isValidStudentId(id) {
 
 function reservationExpiresAt(date) {
   const [year, month, day] = date.split("-").map(Number);
-  // 한국 시간 해당 날짜 00:00. 이 시각 이후에만 관리자 정리가 허용된다.
-  return new Date(Date.UTC(year, month - 1, day - 1, 15, 0, 0));
+  // 한국 시간 예약일 다음 날 00:00. 예약일이 끝난 뒤에만 관리자 정리가 허용된다.
+  return new Date(Date.UTC(year, month - 1, day, 15, 0, 0));
 }
 
 // UI
@@ -1748,15 +1748,13 @@ adminCleanupPastBtn.onclick = async () => {
   if (!confirm(`${today}보다 과거인 모든 예약을 삭제할까요?`)) return;
   try {
     const seatsSnapshot = await getDocs(collectionGroup(db, "seats"));
-    const now = new Date();
-    const expiredSeats = seatsSnapshot.docs.filter((seatDoc) => {
+    const pastSeats = seatsSnapshot.docs.filter((seatDoc) => {
       const dateDoc = seatDoc.ref.parent.parent;
-      const expiresAt = seatDoc.data().expiresAt;
       return dateDoc?.parent.id === "reservations" &&
-        expiresAt?.toDate && expiresAt.toDate() <= now;
+        dateDoc.id < today;
     });
-    for (const seatDoc of expiredSeats) await deleteDoc(seatDoc.ref);
-    alert(`지난 예약 ${expiredSeats.length}개를 삭제했습니다.`);
+    for (const seatDoc of pastSeats) await deleteDoc(seatDoc.ref);
+    alert(`지난 예약 ${pastSeats.length}개를 삭제했습니다.`);
   } catch (error) {
     console.error(error);
     alert("지난 예약 정리에 실패했습니다.");
