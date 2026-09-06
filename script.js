@@ -87,6 +87,7 @@ const adminStatsText = document.getElementById("adminStatsText");
 
 // 예약 날짜 입력창
 const reserveDate = document.getElementById("reserveDate");
+const goTodayBtn = document.getElementById("goTodayBtn");
 
 const lunchCheck = document.getElementById("lunchCheck");
 
@@ -95,6 +96,11 @@ const dinnerCheck = document.getElementById("dinnerCheck");
 const part1Check = document.getElementById("part1Check");
 
 const part2Check = document.getElementById("part2Check");
+
+goTodayBtn.addEventListener("click", () => {
+  reserveDate.value = todayString();
+  reserveDate.dispatchEvent(new Event("change"));
+});
 
 // =============================
 // 예약 취소 팝업 요소

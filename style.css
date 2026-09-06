@@ -260,3 +260,4 @@ h1{
 #myReservationManageList{display:flex;flex-direction:column;gap:9px;max-height:320px;overflow-y:auto;padding-right:2px}
 #myReservationManageList button{width:100%;margin:0;padding:13px 14px;border:1px solid #dce9e0;border-radius:12px;background:#f7fcf8;color:#1d5735;text-align:left;font-size:14px;font-weight:700;line-height:1.45;cursor:pointer}
 #myReservationManageList button:hover{background:#e7f6eb;border-color:#7dc89a}
+#reserveTimeInfo{display:none}.date-control{display:flex;align-items:center;gap:8px;margin-top:7px}.date-control input[type="date"]{flex:1;min-width:0}#goTodayBtn{flex:0 0 auto;margin:0;padding:10px 12px;border:1px solid #b9d9c3;border-radius:10px;background:#f4fbf6;color:#1d6b3e;font-weight:700;cursor:pointer}#goTodayBtn:hover{background:#e2f4e7}.date-hint{margin:8px 0 16px;color:#9a5a17;font-size:13px;font-weight:700}

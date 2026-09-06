@@ -8,7 +8,7 @@
 
     <title>영글터 좌석</title>
 
-    <link rel="stylesheet" href="style.css?v=reservation-manager-1">
+    <link rel="stylesheet" href="style.css?v=reservation-date-2">
 </head>
 <body>
 
@@ -104,14 +104,14 @@
             예약 날짜 선택
         </label>
 
-        <br>
-
-        <input
-            id="reserveDate"
-            type="date"
-        >
-
-        <br><br>
+        <div class="date-control">
+            <input
+                id="reserveDate"
+                type="date"
+            >
+            <button type="button" id="goTodayBtn">오늘로</button>
+        </div>
+        <p class="date-hint">예약 전 날짜를 꼭 확인하세요.</p>
 
 
         <!-- 여기부터 시간 -->
