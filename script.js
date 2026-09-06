@@ -40,6 +40,10 @@ function authEmail(studentId) {
 
 const ADMIN_STUDENT_ID = "20900";
 
+function reservationIndexRef(date, seatNum, session) {
+  return doc(db, "users", currentUser, "reservationIndex", `${date}_${seatNum}_${session}`);
+}
+
 function isValidStudentId(id) {
   if (id === ADMIN_STUDENT_ID) return true;
   if (!/^\d{5}$/.test(id)) return false;
@@ -68,6 +72,10 @@ const changePwBtn = document.getElementById("changePwBtn");
 
 const mySeatText = document.getElementById("mySeatText");
 const availabilityText = document.getElementById("availabilityText");
+const myReservationManageBtn = document.getElementById("myReservationManageBtn");
+const myReservationManagePopup = document.getElementById("myReservationManagePopup");
+const myReservationManageList = document.getElementById("myReservationManageList");
+const myReservationManageCloseBtn = document.getElementById("myReservationManageCloseBtn");
 
 const reserveTimeInfo = document.getElementById("reserveTimeInfo");
 
@@ -849,6 +857,7 @@ function openCancelReservationPopup(
           throw new Error("이미 취소되었거나 다른 예약으로 변경되었습니다.");
         }
         transaction.update(ref, { [`times.${time.key}`]: { owner: "" } });
+        transaction.delete(reservationIndexRef(selectedDate, seatNum, time.key));
         transaction.update(userRef, {
           ticketCount: Math.min((freshUserSnap.data().ticketCount ?? 0) + 1, 10),
         });
@@ -912,6 +921,7 @@ function openCancelReservationPopup(
           const seatUpdates = {};
           keys.forEach((key) => { seatUpdates[`times.${key}`] = { owner: "" }; });
           transaction.update(ref, seatUpdates);
+          keys.forEach((key) => transaction.delete(reservationIndexRef(selectedDate, seatNum, key)));
           transaction.update(userRef, { ticketCount: Math.min((freshUserSnap.data().ticketCount ?? 0) + keys.length, 10) });
           return keys.length;
         });
@@ -1391,6 +1401,14 @@ reserveBtn.onclick = async () => {
 
       transaction.set(seatRef, freshReserveData);
       transaction.update(userRef, { ticketCount: freshTicketCount - selectedCount });
+      Object.keys(selectedTimes).filter((timeName) => selectedTimes[timeName]).forEach((timeName) => {
+        transaction.set(reservationIndexRef(selectedDate, selectedSeat, timeName), {
+          date: selectedDate,
+          seatNum: selectedSeat,
+          session: timeName,
+          createdAt: serverTimestamp(),
+        });
+      });
     });
 
     // 내 정보 업데이트
@@ -1586,6 +1604,36 @@ adminBtn.onclick = () => {
 
 adminCloseBtn.onclick = () => {
   adminPopup.classList.add("hidden");
+};
+
+myReservationManageCloseBtn.onclick = () => myReservationManagePopup.classList.add("hidden");
+myReservationManageBtn.onclick = async () => {
+  if (!currentUser) return alert("로그인 먼저 해주세요.");
+  myReservationManageList.textContent = "예약을 불러오는 중입니다.";
+  myReservationManagePopup.classList.remove("hidden");
+  try {
+    const snapshot = await getDocs(collection(db, "users", currentUser, "reservationIndex"));
+    const labels = { lunch: "점심", dinner: "저녁", part1: "야자 1부", part2: "야자 2부" };
+    const reservations = snapshot.docs.map((item) => item.data()).filter((item) => item.date >= todayString()).sort((a, b) => a.date.localeCompare(b.date) || a.seatNum - b.seatNum);
+    myReservationManageList.replaceChildren();
+    if (!reservations.length) return void (myReservationManageList.textContent = "이번 달에 취소할 예약이 없습니다.");
+    reservations.forEach((reservation) => {
+      const button = document.createElement("button");
+      button.textContent = `${reservation.date} · ${reservation.seatNum}번 · ${labels[reservation.session]} 취소 관리`;
+      button.onclick = async () => {
+        const seatSnap = await getDoc(doc(db, "reservations", reservation.date, "seats", String(reservation.seatNum)));
+        if (!seatSnap.exists()) return alert("예약 정보를 찾을 수 없습니다.");
+        reserveDate.value = reservation.date;
+        listenReservations(reservation.date);
+        myReservationManagePopup.classList.add("hidden");
+        openCancelReservationPopup(reservation.date, reservation.seatNum, seatSnap.data().times || {});
+      };
+      myReservationManageList.appendChild(button);
+    });
+  } catch (error) {
+    console.error(error);
+    myReservationManageList.textContent = "예약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+  }
 };
 
 async function startAuthenticatedSession(user) {
