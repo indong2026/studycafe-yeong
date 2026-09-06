@@ -421,6 +421,12 @@ function render() {
     currentSession = "part2";
   }
 
+  // '사용 중'은 실제 오늘의 현재 시간대에만 표시한다.
+  // 미래 날짜의 예약을 현재 사용 중인 것처럼 보여 주지 않는다.
+  if (selectedDate !== todayString()) {
+    currentSession = "";
+  }
+
   document.querySelectorAll(".desk").forEach((div, index) => {
     const seat = seats[index];
 
