@@ -18,8 +18,6 @@ import {
   deleteDoc,
   collection,
   collectionGroup,
-  query,
-  where,
   getDocs,
   onSnapshot,
   runTransaction,
@@ -70,10 +68,6 @@ const changePwBtn = document.getElementById("changePwBtn");
 
 const mySeatText = document.getElementById("mySeatText");
 const availabilityText = document.getElementById("availabilityText");
-const myReservationsBtn = document.getElementById("myReservationsBtn");
-const myReservationsPopup = document.getElementById("myReservationsPopup");
-const myReservationsList = document.getElementById("myReservationsList");
-const myReservationsCloseBtn = document.getElementById("myReservationsCloseBtn");
 
 const reserveTimeInfo = document.getElementById("reserveTimeInfo");
 
@@ -1536,55 +1530,6 @@ adminBtn.onclick = () => {
 
 adminCloseBtn.onclick = () => {
   adminPopup.classList.add("hidden");
-};
-
-myReservationsCloseBtn.onclick = () => {
-  myReservationsPopup.classList.add("hidden");
-};
-
-myReservationsBtn.onclick = async () => {
-  if (!currentUser) return alert("로그인 먼저 해주세요.");
-
-  myReservationsList.textContent = "내 예약을 불러오는 중입니다.";
-  myReservationsPopup.classList.remove("hidden");
-
-  try {
-    const reservationQuery = query(
-      collectionGroup(db, "seats"),
-      where("date", ">=", todayString()),
-    );
-    const snapshot = await getDocs(reservationQuery);
-    const reservations = [];
-
-    snapshot.forEach((seatDoc) => {
-      const data = seatDoc.data();
-      const dateDoc = seatDoc.ref.parent.parent;
-      if (dateDoc?.parent.id !== "reservations") return;
-
-      for (const { key, label } of sessionDetails) {
-        if (data.times?.[key]?.owner === currentUser) {
-          reservations.push({ date: data.date, seat: Number(seatDoc.id), label });
-        }
-      }
-    });
-
-    reservations.sort((a, b) => a.date.localeCompare(b.date) || a.seat - b.seat);
-    myReservationsList.replaceChildren();
-
-    if (!reservations.length) {
-      myReservationsList.textContent = "오늘 이후의 예약이 없습니다.";
-      return;
-    }
-
-    for (const reservation of reservations) {
-      const item = document.createElement("p");
-      item.textContent = `${reservation.date} · ${reservation.seat}번 · ${reservation.label}`;
-      myReservationsList.appendChild(item);
-    }
-  } catch (error) {
-    console.error(error);
-    myReservationsList.textContent = "내 예약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
-  }
 };
 
 async function startAuthenticatedSession(user) {

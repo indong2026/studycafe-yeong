@@ -51,21 +51,6 @@ h1{
     margin:0 0 10px;
 }
 
-#myReservationsBtn{
-    border:none;
-    border-radius:8px;
-    padding:10px 16px;
-    background:#4caf50;
-    color:white;
-    font-size:15px;
-    font-weight:600;
-    cursor:pointer;
-    margin-bottom:16px;
-}
-
-#myReservationsBtn:hover{
-    background:#388e3c;
-}
 
 .study-room{
     width:100%;
