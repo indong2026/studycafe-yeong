@@ -611,8 +611,11 @@ function render() {
 // ==========================================
 
 let reservationUnsubscribers = [];
+let activeReservationDate = "";
 
 function listenReservations(date) {
+
+  activeReservationDate = date;
 
   // 기존 실시간 감시 종료
   reservationUnsubscribers.forEach((unsubscribe) => {
@@ -633,6 +636,8 @@ function listenReservations(date) {
     );
 
     const unsubscribe = onSnapshot(ref, (snap) => {
+
+      if (activeReservationDate !== date) return;
 
       if (snap.exists()) {
 
