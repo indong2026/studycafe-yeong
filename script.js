@@ -17,6 +17,7 @@ import {
   updateDoc,
   deleteDoc,
   collection,
+  collectionGroup,
   getDocs,
   onSnapshot,
   runTransaction,
@@ -37,7 +38,10 @@ function authEmail(studentId) {
   return `${studentId}@indong-study.local`;
 }
 
+const ADMIN_STUDENT_ID = "20900";
+
 function isValidStudentId(id) {
+  if (id === ADMIN_STUDENT_ID) return true;
   if (!/^\d{5}$/.test(id)) return false;
   const grade = Number(id[0]), classroom = Number(id.slice(1, 3)), number = Number(id.slice(3, 5));
   return grade >= 1 && grade <= 2 && classroom >= 1 && classroom <= 10 && number >= 1 && number <= 28;
@@ -66,6 +70,7 @@ const adminCloseBtn = document.getElementById("adminCloseBtn");
 const adminCancelSeatBtn = document.getElementById("adminCancelSeatBtn");
 const adminAddTicketBtn = document.getElementById("adminAddTicketBtn");
 const adminDeleteUserBtn = document.getElementById("adminDeleteUserBtn");
+const adminCleanupPastBtn = document.getElementById("adminCleanupPastBtn");
 
 // 예약 날짜 입력창
 const reserveDate = document.getElementById("reserveDate");
@@ -207,6 +212,22 @@ function updateTimeOptions() {
   );
 
   const day = date.getDay();
+
+  // 주말에는 모든 시간대 예약 불가
+  if (day === 0 || day === 6) {
+    lunchCheck.disabled = true;
+    dinnerCheck.disabled = true;
+    part1Check.disabled = true;
+    part2Check.disabled = true;
+    lunchCheck.checked = false;
+    dinnerCheck.checked = false;
+    part1Check.checked = false;
+    part2Check.checked = false;
+    reserveTimeInfo.textContent = "주말에는 예약할 수 없습니다.";
+    return;
+  }
+
+  reserveTimeInfo.textContent = "예약 가능 시간 : 12:30 ~ 21:30";
 
   // ==========================================
   // 금요일
@@ -1419,6 +1440,12 @@ function canReserve() {
     return false;
   }
 
+  const day = new Date(selectedDate + "T00:00:00").getDay();
+  if (day === 0 || day === 6) {
+    alert("주말에는 예약할 수 없습니다.");
+    return false;
+  }
+
   // 미래 날짜는 예약 가능
   if (selectedDate > today) {
     return true;
@@ -1564,8 +1591,8 @@ adminDeleteUserBtn.onclick = async () => {
 
 async function startAuthenticatedSession(user) {
   currentUser = user.uid;
-  isAdmin = false;
-  document.getElementById("adminBtn").style.display = "none";
+  isAdmin = user.email === authEmail(ADMIN_STUDENT_ID);
+  document.getElementById("adminBtn").style.display = isAdmin ? "block" : "none";
   const userRef = doc(db, "users", currentUser);
   const userSnap = await getDoc(userRef);
   if (userSnap.exists()) await updateMonthlyTicket(userRef, userSnap.data());
@@ -1620,5 +1647,23 @@ changePwBtn.onclick = async () => {
   } catch (error) {
     console.error(error);
     alert("현재 비밀번호를 확인해주세요.");
+  }
+};
+
+adminCleanupPastBtn.onclick = async () => {
+  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
+  const today = todayString();
+  if (!confirm(`${today}보다 과거인 모든 예약을 삭제할까요?`)) return;
+  try {
+    const seatsSnapshot = await getDocs(collectionGroup(db, "seats"));
+    const expiredSeats = seatsSnapshot.docs.filter((seatDoc) => {
+      const dateDoc = seatDoc.ref.parent.parent;
+      return dateDoc?.parent.id === "reservations" && dateDoc.id < today;
+    });
+    for (const seatDoc of expiredSeats) await deleteDoc(seatDoc.ref);
+    alert(`지난 예약 ${expiredSeats.length}개를 삭제했습니다.`);
+  } catch (error) {
+    console.error(error);
+    alert("지난 예약 정리에 실패했습니다.");
   }
 };
