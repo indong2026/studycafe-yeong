@@ -47,6 +47,12 @@ function isValidStudentId(id) {
   return grade >= 1 && grade <= 2 && classroom >= 1 && classroom <= 10 && number >= 1 && number <= 28;
 }
 
+function reservationExpiresAt(date) {
+  const [year, month, day] = date.split("-").map(Number);
+  // 한국 시간 해당 날짜 00:00. 이 시각 이후에만 관리자 정리가 허용된다.
+  return new Date(Date.UTC(year, month - 1, day - 1, 15, 0, 0));
+}
+
 // UI
 const popup = document.getElementById("popup");
 const popupText = document.getElementById("popupText");
@@ -67,9 +73,6 @@ const reserveTimeInfo = document.getElementById("reserveTimeInfo");
 const adminPopup = document.getElementById("adminPopup");
 
 const adminCloseBtn = document.getElementById("adminCloseBtn");
-const adminCancelSeatBtn = document.getElementById("adminCancelSeatBtn");
-const adminAddTicketBtn = document.getElementById("adminAddTicketBtn");
-const adminDeleteUserBtn = document.getElementById("adminDeleteUserBtn");
 const adminCleanupPastBtn = document.getElementById("adminCleanupPastBtn");
 
 // 예약 날짜 입력창
@@ -1324,6 +1327,9 @@ reserveBtn.onclick = async () => {
 
       const freshReserveData = {
         date: selectedDate,
+        expiresAt: freshSeatSnap.exists() && freshSeatSnap.data().expiresAt
+          ? freshSeatSnap.data().expiresAt
+          : reservationExpiresAt(selectedDate),
         times: {
           lunch: freshTimes.lunch || { owner: "" },
           dinner: freshTimes.dinner || { owner: "" },
@@ -1521,74 +1527,6 @@ adminCloseBtn.onclick = () => {
   adminPopup.classList.add("hidden");
 };
 
-adminCancelSeatBtn.onclick = async () => {
-  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
-  const date = prompt("예약 날짜 (YYYY-MM-DD)");
-  const seatNum = prompt("좌석 번호");
-  const timeKey = prompt("시간대 (lunch, dinner, part1, part2)");
-  if (!date || !seatNum || !["lunch", "dinner", "part1", "part2"].includes(timeKey)) return;
-
-  const seatRef = doc(db, "reservations", date, "seats", seatNum);
-  await runTransaction(db, async (transaction) => {
-    const seatSnap = await transaction.get(seatRef);
-    if (!seatSnap.exists()) throw new Error("예약 정보를 찾을 수 없습니다.");
-    const owner = seatSnap.data().times?.[timeKey]?.owner;
-    let userRef = null;
-    let userSnap = null;
-    if (owner) {
-      userRef = doc(db, "users", owner);
-      userSnap = await transaction.get(userRef);
-    }
-    transaction.update(seatRef, { [`times.${timeKey}`]: { owner: "" } });
-    if (userSnap?.exists()) {
-      transaction.update(userRef, { ticketCount: Math.min((userSnap.data().ticketCount ?? 0) + 1, 10) });
-    }
-  });
-  alert("예약 취소 완료");
-};
-
-adminAddTicketBtn.onclick = async () => {
-  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
-  const id = prompt("학번");
-
-  const amount = Number(prompt("추가 수량"));
-
-  if (!id || !amount) return;
-
-  const userRef = doc(db, "users", id);
-
-  const userSnap = await getDoc(userRef);
-
-  if (!userSnap.exists()) {
-    alert("계정 없음");
-    return;
-  }
-
-  const userData = userSnap.data();
-
-  await updateDoc(userRef, {
-    ticketCount: (userData.ticketCount ?? 0) + amount,
-  });
-
-  alert("추가 완료");
-};
-
-adminDeleteUserBtn.onclick = async () => {
-  if (!isAdmin) return alert("관리자 권한이 필요합니다.");
-  const id = prompt("삭제할 학번");
-
-  if (!id) return;
-
-  const ok = confirm(`${id} 삭제?`);
-
-  if (!ok) return;
-
-  await deleteDoc(doc(db, "users", id));
-
-  alert("삭제 완료");
-
-};
-
 async function startAuthenticatedSession(user) {
   currentUser = user.uid;
   isAdmin = user.email === authEmail(ADMIN_STUDENT_ID);
@@ -1656,9 +1594,12 @@ adminCleanupPastBtn.onclick = async () => {
   if (!confirm(`${today}보다 과거인 모든 예약을 삭제할까요?`)) return;
   try {
     const seatsSnapshot = await getDocs(collectionGroup(db, "seats"));
+    const now = new Date();
     const expiredSeats = seatsSnapshot.docs.filter((seatDoc) => {
       const dateDoc = seatDoc.ref.parent.parent;
-      return dateDoc?.parent.id === "reservations" && dateDoc.id < today;
+      const expiresAt = seatDoc.data().expiresAt;
+      return dateDoc?.parent.id === "reservations" &&
+        expiresAt?.toDate && expiresAt.toDate() <= now;
     });
     for (const seatDoc of expiredSeats) await deleteDoc(seatDoc.ref);
     alert(`지난 예약 ${expiredSeats.length}개를 삭제했습니다.`);
