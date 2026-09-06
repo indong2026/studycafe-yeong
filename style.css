@@ -248,3 +248,15 @@ h1{
 .cancel-all-btn{
     background:#dc2626 !important;
 }
+
+#mySeatText,#availabilityText{width:min(100%,520px);box-sizing:border-box;margin-left:auto;margin-right:auto}
+#mySeatText{background:#fff;border:1px solid #dce9e0;border-radius:14px;padding:12px 16px;color:#17452a;font-weight:700;box-shadow:0 4px 14px rgba(28,88,53,.08)}
+#availabilityText{color:#47705a;font-weight:600}
+#myReservationManageBtn{border:0;border-radius:12px;padding:12px 18px;margin:2px 0 18px;background:linear-gradient(135deg,#247a4c,#38a169);color:#fff;font-size:15px;font-weight:700;box-shadow:0 6px 14px rgba(36,122,76,.24);cursor:pointer}
+#myReservationManageBtn:hover{transform:translateY(-1px)}
+#myReservationManagePopup .popup-box{max-width:390px;text-align:left;box-shadow:0 20px 50px rgba(16,43,29,.28)}
+#myReservationManagePopup h3{margin:0 0 6px;color:#17452a;font-size:21px}
+#myReservationManagePopup h3 + p{margin:0 0 14px;color:#6b7280;font-size:14px}
+#myReservationManageList{display:flex;flex-direction:column;gap:9px;max-height:320px;overflow-y:auto;padding-right:2px}
+#myReservationManageList button{width:100%;margin:0;padding:13px 14px;border:1px solid #dce9e0;border-radius:12px;background:#f7fcf8;color:#1d5735;text-align:left;font-size:14px;font-weight:700;line-height:1.45;cursor:pointer}
+#myReservationManageList button:hover{background:#e7f6eb;border-color:#7dc89a}
