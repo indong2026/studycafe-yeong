@@ -18,6 +18,8 @@ import {
   deleteDoc,
   collection,
   collectionGroup,
+  query,
+  where,
   getDocs,
   onSnapshot,
   runTransaction,
@@ -67,6 +69,11 @@ const signupBtn = document.getElementById("signupBtn");
 const changePwBtn = document.getElementById("changePwBtn");
 
 const mySeatText = document.getElementById("mySeatText");
+const availabilityText = document.getElementById("availabilityText");
+const myReservationsBtn = document.getElementById("myReservationsBtn");
+const myReservationsPopup = document.getElementById("myReservationsPopup");
+const myReservationsList = document.getElementById("myReservationsList");
+const myReservationsCloseBtn = document.getElementById("myReservationsCloseBtn");
 
 const reserveTimeInfo = document.getElementById("reserveTimeInfo");
 
@@ -74,6 +81,7 @@ const adminPopup = document.getElementById("adminPopup");
 
 const adminCloseBtn = document.getElementById("adminCloseBtn");
 const adminCleanupPastBtn = document.getElementById("adminCleanupPastBtn");
+const adminStatsText = document.getElementById("adminStatsText");
 
 // 예약 날짜 입력창
 const reserveDate = document.getElementById("reserveDate");
@@ -583,6 +591,8 @@ function render() {
       popup.classList.remove("hidden");
     };
   });
+
+  renderReservationOverview();
 }
 
 // ==========================================
@@ -1520,11 +1530,61 @@ cancelBtn.onclick = () => {
 const adminBtn = document.getElementById("adminBtn");
 
 adminBtn.onclick = () => {
+  renderReservationOverview();
   adminPopup.classList.remove("hidden");
 };
 
 adminCloseBtn.onclick = () => {
   adminPopup.classList.add("hidden");
+};
+
+myReservationsCloseBtn.onclick = () => {
+  myReservationsPopup.classList.add("hidden");
+};
+
+myReservationsBtn.onclick = async () => {
+  if (!currentUser) return alert("로그인 먼저 해주세요.");
+
+  myReservationsList.textContent = "내 예약을 불러오는 중입니다.";
+  myReservationsPopup.classList.remove("hidden");
+
+  try {
+    const reservationQuery = query(
+      collectionGroup(db, "seats"),
+      where("date", ">=", todayString()),
+    );
+    const snapshot = await getDocs(reservationQuery);
+    const reservations = [];
+
+    snapshot.forEach((seatDoc) => {
+      const data = seatDoc.data();
+      const dateDoc = seatDoc.ref.parent.parent;
+      if (dateDoc?.parent.id !== "reservations") return;
+
+      for (const { key, label } of sessionDetails) {
+        if (data.times?.[key]?.owner === currentUser) {
+          reservations.push({ date: data.date, seat: Number(seatDoc.id), label });
+        }
+      }
+    });
+
+    reservations.sort((a, b) => a.date.localeCompare(b.date) || a.seat - b.seat);
+    myReservationsList.replaceChildren();
+
+    if (!reservations.length) {
+      myReservationsList.textContent = "오늘 이후의 예약이 없습니다.";
+      return;
+    }
+
+    for (const reservation of reservations) {
+      const item = document.createElement("p");
+      item.textContent = `${reservation.date} · ${reservation.seat}번 · ${reservation.label}`;
+      myReservationsList.appendChild(item);
+    }
+  } catch (error) {
+    console.error(error);
+    myReservationsList.textContent = "내 예약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+  }
 };
 
 async function startAuthenticatedSession(user) {
@@ -1536,6 +1596,31 @@ async function startAuthenticatedSession(user) {
   if (userSnap.exists()) await updateMonthlyTicket(userRef, userSnap.data());
   await updateMyInfo();
   listenReservations(reserveDate.value || todayString());
+}
+
+const sessionDetails = [
+  { key: "lunch", label: "점심" },
+  { key: "dinner", label: "저녁" },
+  { key: "part1", label: "야자 1부" },
+  { key: "part2", label: "야자 2부" },
+];
+
+function renderReservationOverview() {
+  const selectedDate = reserveDate.value || todayString();
+  const summary = sessionDetails.map(({ key, label }) => {
+    const remaining = seats.filter((seat) => !seat.times?.[key]).length;
+    return `${label} ${remaining}/${seats.length}석`;
+  }).join(" · ");
+
+  availabilityText.textContent = `${selectedDate} 남은 좌석: ${summary}`;
+
+  if (isAdmin) {
+    const reserved = sessionDetails.map(({ key, label }) => {
+      const count = seats.filter((seat) => Boolean(seat.times?.[key])).length;
+      return `${label} ${count}/${seats.length}석`;
+    }).join(" · ");
+    adminStatsText.textContent = `${selectedDate} 예약 현황: ${reserved}`;
+  }
 }
 
 onAuthStateChanged(auth, (user) => {

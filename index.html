@@ -48,6 +48,14 @@
         로그인 해주세요.
     </p>
 
+    <p id="availabilityText" aria-live="polite">
+        선택 날짜의 남은 좌석을 불러오는 중입니다.
+    </p>
+
+    <button id="myReservationsBtn">
+        내 예약 확인
+    </button>
+
     
     <div class="room-wrap">
     <div id="studyRoom" class="yeong-room">
@@ -192,11 +200,31 @@
 
 </div>
 
+<div id="myReservationsPopup" class="popup hidden">
+
+    <div class="popup-box">
+
+        <h3>내 예약</h3>
+
+        <div id="myReservationsList"></div>
+
+        <br>
+
+        <button id="myReservationsCloseBtn">
+            닫기
+        </button>
+
+    </div>
+
+</div>
+
     <div id="adminPopup" class="popup hidden">
 
   <div class="popup-box">
 
     <h3>관리자 메뉴</h3>
+
+    <p id="adminStatsText"></p>
 
     <button id="adminCleanupPastBtn">
       지난 예약 정리
