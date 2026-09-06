@@ -1550,21 +1550,7 @@ function canReserve() {
     return false;
   }
 
-  // 미래 날짜는 예약 가능
-  if (selectedDate > today) {
-    return true;
-  }
-
-  // 오늘 날짜
-  const now = new Date();
-  const minute = now.getHours() * 60 + now.getMinutes();
-
-  // 오늘은 12:30 ~ 21:30 사이만 예약 가능
-  if (minute < 750 || minute >= 1290) {
-    alert("오늘 예약 가능 시간은 12:30 ~ 21:30입니다.");
-    return false;
-  }
-
+  // 날짜 규칙만 통과하면 오늘과 미래 날짜 모두 예약 가능
   return true;
 }
 
@@ -1747,6 +1733,7 @@ adminCleanupPastBtn.onclick = async () => {
   const today = todayString();
   if (!confirm(`${today}보다 과거인 모든 예약을 삭제할까요?`)) return;
   try {
+    const dateSnapshot = await getDocs(collection(db, "reservations"));
     const seatsSnapshot = await getDocs(collectionGroup(db, "seats"));
     const pastSeats = seatsSnapshot.docs.filter((seatDoc) => {
       const dateDoc = seatDoc.ref.parent.parent;
@@ -1754,7 +1741,9 @@ adminCleanupPastBtn.onclick = async () => {
         dateDoc.id < today;
     });
     for (const seatDoc of pastSeats) await deleteDoc(seatDoc.ref);
-    alert(`지난 예약 ${pastSeats.length}개를 삭제했습니다.`);
+    const pastDateDocs = dateSnapshot.docs.filter((dateDoc) => dateDoc.id < today);
+    for (const dateDoc of pastDateDocs) await deleteDoc(dateDoc.ref);
+    alert(`지난 예약 ${pastSeats.length}개와 날짜 기록 ${pastDateDocs.length}개를 삭제했습니다.`);
   } catch (error) {
     console.error(error);
     alert("지난 예약 정리에 실패했습니다.");
